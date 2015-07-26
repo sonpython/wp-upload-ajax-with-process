@@ -40,6 +40,12 @@ class TP_Upload_File
 		*/
 		add_action( 'wp_ajax_tp_upload', array($this, 'tp_upload') );
         add_action( 'wp_ajax_nopriv_tp_upload', array($this, 'tp_upload') );
+
+        /**
+		* Đây là action đăng ký ajax delete upload
+		*/
+		add_action( 'wp_ajax_tp_delete_upload', array($this, 'tp_delete_upload') );
+        add_action( 'wp_ajax_nopriv_tp_delete_upload', array($this, 'tp_delete_upload') );
 	}
 
 	/**
@@ -47,7 +53,8 @@ class TP_Upload_File
 	*/
 	public function tp_enqueue_styles(){
 		wp_enqueue_style( 'tp-style-icon', '//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css', array(), '0.1', 'all' );
-		wp_enqueue_style( 'tp-style-upload', TPU_CSS . 'uikit.docs.min.css', array(), '0.1', 'all' );
+		wp_enqueue_style( 'tp-style-uikit', TPU_CSS . 'uikit.docs.min.css', array(), '0.1', 'all' );
+		wp_enqueue_style( 'tp-style-main', TPU_CSS . 'main.css', array(), '0.1', 'all' );
 	}
 
 	/**
@@ -56,6 +63,8 @@ class TP_Upload_File
 	public function tp_enqueue_scripts(){
 		wp_enqueue_script( 'tpu-script-uikit', TPU_JS . 'uikit.min.js', array( 'jquery' ), '0.1', false );
 		wp_enqueue_script( 'tpu-script-upload', TPU_JS . 'upload.js', array( 'jquery' ), '0.1', false );
+		wp_enqueue_script( 'tpu-script-main', TPU_JS . 'main.js', array( 'jquery' ), '0.1', true );
+		wp_localize_script( 'tpu-script-main', 'tp_ajax_url', array( 'ajax_url' => admin_url( 'admin-ajax.php' ) ) );
 	}
 
 	/**
@@ -66,9 +75,14 @@ class TP_Upload_File
 			?>
 				<div id="upload-drop" class="uk-placeholder uk-text-center">
 		            <i class="fa fa-cloud-upload uk-icon-medium uk-text-muted uk-margin-small-right"></i> Attach binaries by dropping them here or <a class="uk-form-file">selecting one<input id="upload-select" name="uploadfile" type="file"></a>.
-		        </div>
-		        <div id="progressbar" class="uk-progress uk-hidden">
-		            <div class="uk-progress-bar" style="width: 0%;">0%</div>
+		            <div id="progressbar" class="uk-progress uk-hidden">
+			            <div class="uk-progress-bar" style="width: 0%;">0%</div>
+			        </div>
+			        <div id="upload-results" style="display:none;">
+				    	<div class="uk-alert">
+				    		<ul id="files" class="uk-list"><li class="clearfix" style="clear: both;"></li></ul>
+				    	</div>
+				    </div>
 		        </div>
 		        <?php $upload_nonce = wp_create_nonce( 'tp_upload_nonce' );?>
 		        <script>
@@ -98,14 +112,20 @@ class TP_Upload_File
 
 				            	bar.css("width", "100%").text("100%");
 					            setTimeout(function(){ progressbar.addClass("uk-hidden");}, 250);
+
+					            $("#upload-results").show();
 	
 								if( data.status == "1" ){
 
-									console.log('aaa');
+									$('#files .clearfix').before('<li class="success"><img src="'+ data.url +'" alt="" data-name="'+ data.name_tmp +'" data-id="'+ data.id +'" style="max-width:35px;"/><br />'+ data.name_tmp +' <a href="" class="remove_img uk-alert-close uk-close" data-delete="'+ data.id +'"></a></li>');
+
+									new tp_remove_data_upload("#files .success .remove_img");//hàm xóa file upload
 
 								} else{
 									
-									console.log('bbbb');
+									$("#upload-results .uk-alert").addClass('uk-alert-danger');
+									$('#files .clearfix').before('<li class="error">'+ data.message +'</li>');
+									
 								}
 
 				            }
@@ -207,7 +227,16 @@ class TP_Upload_File
 	* Đây là function để chạy action delete file ajax
 	*/
 	public function tp_delete_upload(){
-		
+
+		$status = array('status'=> '0');
+
+		if( isset($_REQUEST['attach_id']) && !empty($_REQUEST['attach_id']) ){
+
+			wp_delete_attachment( $_REQUEST['attach_id'] );
+		}
+
+		echo json_encode($status);
+		die();
 	}
 
 }
